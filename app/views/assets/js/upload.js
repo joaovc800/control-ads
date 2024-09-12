@@ -5,18 +5,39 @@ const tableContainer = document.querySelector(".table-container")
 
 uploader.addEventListener("change", ({ target }) => {
     const [file] = target.files
+    
     const reader = new FileReader()
 
-    reader.onload = function (event) {
+    reader.onload = async function (event) {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' })
         const [ sheetName ] = workbook.SheetNames
         const sheet = workbook.Sheets[sheetName]
-        const json = XLSX.utils.sheet_to_json(sheet)
 
-        console.log(json)
+        const headers = {};
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        rows.forEach(row => {
+            row.forEach((cell, colIndex) => {
+                const header = rows[0][colIndex];
+                if (header && !headers[header]) {
+                    headers[header] = true;
+                }
+            });
+        });
 
-        generateTable({
+        const json = XLSX.utils.sheet_to_json(sheet, { header: Object.keys(headers), defval: null });
+
+        const request = await fetch('../controllers/uploadExcel.php', {
+            method: 'POST',
+            body: JSON.stringify({
+                data: json.slice(1),
+                file: file.name
+            })
+        })
+
+        const response = await request.json()
+
+        /* generateTable({
             data: json,
             container: tableContainer,
             columnMapping: [
@@ -36,7 +57,7 @@ uploader.addEventListener("change", ({ target }) => {
                 { field: "LABEL", as: "Rótulo" },
                 { field: "PREFIXSITELINK", as: "Prefixo do Link do Site" }
             ]
-        })
+        }) */
     };
 
     reader.readAsArrayBuffer(file);
