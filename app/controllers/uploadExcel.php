@@ -233,7 +233,7 @@ if($insert['statement']){
     foreach ($json['data'] as $key => $value) {
 
         $lang = array_filter($configLanguages, function($val) use($value){
-            return $val['country'] = strtolower($value['COUNTRY']);
+            return strtolower($val['country']) == strtolower($value['COUNTRY']);
         });
 
         $lineCampaign = formatCampaignData([
@@ -425,7 +425,7 @@ if($insert['statement']){
 
         $utmMaxLinks = 20;
 
-        for ($i=0; $i < $utmMaxLinks; $i++) {
+        for ($i = 1; $i <= $utmMaxLinks; $i++) {
 
             $linkText = $client->sendMessage(
                 "Preciso que crie duas CTA (Headline), para meu anúncio no google. Tome Como base para criar a palavra: $headLineCTAKeyWord. No idioma do artigo (sigla {$lang[0]['code']}). Eu preciso de quatro CTA com até 4 palavras e no máximo 25 caracteres. Jamais pode passar desse número de palavras e caracteres, pois o google ads não aceita maior."
