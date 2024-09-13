@@ -36,9 +36,8 @@ require_once realpath(dirname(__DIR__, 1) . '/controllers/checkSession.php');
                 <span class="file-name"> Nenhum arquivo selecionado </span>
             </label>
         </div>
-
-        <div class="py-3 table-container"></div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <script type="module" src="./assets/js/upload.js"></script>
 </body>
 

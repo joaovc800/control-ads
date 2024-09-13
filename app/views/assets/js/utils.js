@@ -10,7 +10,7 @@ export function generateTable({ data, container, columnMapping = [] }) {
     const thead = document.createElement('thead')
     const tbody = document.createElement('tbody')
 
-    table.classList.add("table")
+    table.classList.add("table", "is-fullwidth")
 
     // Verificar se columnMapping foi fornecido
     if (columnMapping.length > 0) {
@@ -62,4 +62,21 @@ export function generateTable({ data, container, columnMapping = [] }) {
     table.appendChild(tbody)
     tableContainer.innerHTML = ''
     tableContainer.appendChild(table)
+}
+
+export function loading(status){
+    if(status){
+        const parser = new DOMParser()
+        const string = `
+            <div class="loader-container">
+                <div class="loader"></div>
+            </div>
+        `
+        const html = parser.parseFromString(string, 'text/html').body.firstChild
+        document.body.appendChild(html)
+        return
+    }
+
+    const loader = document.querySelector(".loader-container")
+    if(loader) loader.remove()
 }

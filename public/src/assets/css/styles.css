@@ -1,5 +1,6 @@
 @import "https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css";
 @import "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css";
+@import "https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css";
 
 
 ::-webkit-scrollbar {
@@ -18,4 +19,37 @@
     height: 8px;
     background-color: #abb1bf;
     border-radius: 8px;
+}
+
+.loader-container{
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    backdrop-filter: blur(4px);
+}
+
+.loader {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    color: #25b09b;
+    box-shadow:
+        calc(1 * 22px) calc(0 * 22px) 0 0,
+        calc(0.707 * 22px) calc(0.707 * 22px) 0 1px,
+        calc(0 * 22px) calc(1 * 22px) 0 2px,
+        calc(-0.707 * 22px) calc(0.707 * 22px) 0 3px,
+        calc(-1 * 22px) calc(0 * 22px) 0 4px,
+        calc(-0.707 * 22px) calc(-0.707 * 22px)0 5px,
+        calc(0 * 22px) calc(-1 * 22px) 0 6px;
+    animation: l27 1s infinite steps(8);
+}
+
+@keyframes l27 {
+    100% {
+        transform: rotate(1turn)
+    }
 }

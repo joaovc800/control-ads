@@ -1,7 +1,6 @@
-import { generateTable } from "./utils.js"
+import { loading } from "./utils.js"
 
 const uploader = document.querySelector("#upload-file")
-const tableContainer = document.querySelector(".table-container")
 
 uploader.addEventListener("change", ({ target }) => {
     const [file] = target.files
@@ -9,6 +8,9 @@ uploader.addEventListener("change", ({ target }) => {
     const reader = new FileReader()
 
     reader.onload = async function (event) {
+
+        loading(true)
+
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' })
         const [ sheetName ] = workbook.SheetNames
@@ -37,27 +39,16 @@ uploader.addEventListener("change", ({ target }) => {
 
         const response = await request.json()
 
-        /* generateTable({
-            data: json,
-            container: tableContainer,
-            columnMapping: [
-                { field: "CAMPAIGN", as: "Campanha" },
-                { field: "GROUP", as: "Grupo" },
-                { field: "BUDGET", as: "Orçamento" },
-                { field: "TYPECAMPAIGN", as: "Tipo de Campanha" },
-                { field: "INITIALCPC", as: "CPC Inicial" },
-                { field: "CONVERSIONGOAL", as: "Meta de Conversão" },
-                { field: "INITIALDATE", as: "Data Inicial" },
-                { field: "URLNOTUTM", as: "URL sem UTM" },
-                { field: "WORDSNOTUSED", as: "Palavras Não Utilizadas" },
-                { field: "CTAHEADLINE1", as: "Título CTA" },
-                { field: "UTMCAMPAGIN", as: "Campanha UTM" },
-                { field: "UTMMEDIUM", as: "Meio UTM" },
-                { field: "UTMSOURCE", as: "Fonte UTM" },
-                { field: "LABEL", as: "Rótulo" },
-                { field: "PREFIXSITELINK", as: "Prefixo do Link do Site" }
-            ]
-        }) */
+        loading(false)
+
+        // Create an instance of Notyf
+        var notyf = new Notyf();
+
+        // Display an error notification
+        //notyf.error('You must fill out the form before moving forward');
+
+        // Display a success notification
+        notyf.success('Upload Realizado com sucesso!');
     };
 
     reader.readAsArrayBuffer(file);
