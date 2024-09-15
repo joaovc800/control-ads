@@ -20,8 +20,16 @@ require_once realpath(dirname(__DIR__, 1) . '/controllers/checkSession.php');
             <p class="subtitle">Aqui está sua lista de campanhas upadas</p></a>
         </div>
         
-        <div class="table-container-uploads">
-            <table class="table is-fullwidth"></table>
+        <div class="table-container-uploads is-hidden">
+            <div class="is-flex is-gap-2 is-align-items-center py-3">
+                <label class="is-clickable">
+                    <input type="checkbox" class="select-all-checkbox is-clickable">
+                    Selecionar Todos
+                </label>
+                <button id="delete-button" class="button is-danger">Deletar Selecionados</button>
+            </div>
+            
+            <table class="mt-3 table is-fullwidth"></table>
         </div>
     </div>
     <script defer src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>

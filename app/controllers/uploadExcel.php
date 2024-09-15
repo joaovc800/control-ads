@@ -6,8 +6,6 @@ require_once realpath(dirname(__DIR__, 1) . '/services/ChatGPT.php');
 
 header('Content-Type: application/json');
 
-set_time_limit(10000);
-
 $jsonResponse = [];
 
 $configLanguages = [
@@ -98,6 +96,32 @@ function parseJsonArray($jsonString) {
     }
 }
 
+function extractAndDecodeArrays($text) {
+    // Expressão regular para capturar todos os arrays
+    $pattern = '/\[\s*(?:(?:\[\s*(?:[^][]+|\[(?:[^][]+|\[[^\]]*\])*]*\])*]*)\s*,?\s*)+\]/s';
+
+    $text = preg_replace('/,\s*([\]\}])/', '$1', $text);
+    // Encontrar todas as correspondências
+    preg_match_all($pattern, $text, $matches);
+
+    // Decodificar cada array JSON encontrado
+    $decodedArrays = [];
+    foreach ($matches[0] as $jsonArray) {
+        // Tenta decodificar o JSON
+        $decoded = json_decode($jsonArray, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $decodedArrays[] = $decoded;
+        } else {
+
+            return false;
+            // Em caso de erro de decodificação
+            //echo "Erro ao decodificar JSON: " . json_last_error_msg() . "\n";
+        }
+    }
+
+    return $decodedArrays[0];
+}
+
 function translateCalloutText($client, $country){
 
     $calloutText = [
@@ -126,7 +150,7 @@ function translateCalloutText($client, $country){
 
             Palavras: $words
         "
-    , 'Traga a resposta apenas como um array.');
+    , 'Traga a resposta apenas como um array sem a ultima virgula no final para não quebrar o json_decode.');
     
     return parseJsonArray($response['firstResponse']);
 }
@@ -265,115 +289,113 @@ $headers = [
 
 $json = json_decode(file_get_contents('php://input'), true);
 
-foreach ($json['data'] as $key => $value) {
+try {
 
-    $insert = DB::insert('campaigns_header', [
-        'file_path' => $json['file'],
-        'file_text' => $json['file'],
-    ]);
+    foreach ($json['data'] as $key => $value) {
 
-    if($insert['statement']){
-
-        $data = [];
-        
-        $lang = array_values(array_filter($configLanguages, function($val) use($value){
-            return strtolower($val['country']) == strtolower($value['COUNTRY']);
-        }));
-
-        $lineCampaign = formatCampaignData([
-            'Campaign' => $value['CAMPAIGN'],
-            'Labels' => $value['LABEL'],
-            'Budget' => $value['BUDGET'],
-            'Budget type' => 'Daily',
-            'Standard conversion goals' => '[]',
-            'Custom conversion goal' => $value['CAMPAIGN'],
-            'Campaign Type' => 'Search',
-            'Networks' => 'Google search',
-            'Location and language targeting' => 'Campaign level',
-            'Location ID' => $lang[0]['id'],
-            'Location' => $value['COUNTRY'],
-            'Languages' => 'en;' . $lang[0]['code'],
-            'Bid Strategy Type' => 'Manual CPC',
-            'Enhanced CPC' => 'Disabled',
-            'Start Date' => date('Y-m-d'),
-            'End Date' => '[]',
-            'Ad Schedule' => '[]',
-            'Ad rotation' => 'Rotate indefinitely',
-            'Targeting method' => 'Location of presence or Area of interest',
-            'Exclusion method' => 'Location of presence',
-            'Audience targeting' => 'Audience segments',
-            'Flexible Reach' => 'Audience segments',
-            'Text asset automation' => 'Disabled',
-            'Final URL expansion' => 'Enabled',
-            'Campaign Status' => 'Enabled',
+        $insert = DB::insert('campaigns_header', [
+            'file_path' => $json['file'],
+            'file_text' => $json['file'],
         ]);
 
-        array_push($data, $lineCampaign);
+        if($insert['statement']){
 
-        $lineCampaign2 = formatCampaignData([
-            'Campaign' => $value['CAMPAIGN'],
-            'Languages' => 'All',
-            'Ad rotation' => 'Rotate indefinitely',
-            'Audience targeting' => 'Audience segments',
-            'Flexible Reach' => 'Audience segments;Genders;Ages;Parental status;Household incomes',
-            'Final URL expansion' => 'Enabled',
-            'Campaign Status' => 'Enabled',
-            'Ad Group' => $value['CAMPAIGN'],
-            'Max CPC' => $value['INITIALCPC'],
-            'Max CPM' => '0.01',
-            'Target CPV' => '0.01',
-            'Desktop Bid Modifier' => '0',
-            'Mobile Bid Modifier' => '0',
-            'Tablet Bid Modifier' => '0',
-            'Display Network Custom Bid Type' => 'None',
-            'Optimized targeting' => 'Disabled',
-            'Ad Group Type' => 'Standard',
-            'Ad Group Status' => 'Enabled',
-        ]);
+            $data = [];
+            
+            $lang = array_values(array_filter($configLanguages, function($val) use($value){
+                return strtolower($val['country']) == strtolower($value['COUNTRY']);
+            }));
 
-        array_push($data, $lineCampaign2);
-
-        $calloutArray = translateCalloutText($client, $value['COUNTRY']);
-
-        foreach($calloutArray as $calloutText){
-            $calloutTextLine = formatCampaignData([
+            $lineCampaign = formatCampaignData([
                 'Campaign' => $value['CAMPAIGN'],
-                'Ad Group' => $value['CAMPAIGN'],
-                'Callout text' => $calloutText,
+                'Labels' => $value['LABEL'],
+                'Budget' => $value['BUDGET'],
+                'Budget type' => 'Daily',
+                'Standard conversion goals' => '[]',
+                'Custom conversion goal' => $value['CAMPAIGN'],
+                'Campaign Type' => 'Search',
+                'Networks' => 'Google search',
+                'Location and language targeting' => 'Campaign level',
+                'Location ID' => $lang[0]['id'],
+                'Location' => $value['COUNTRY'],
+                'Languages' => 'en;' . $lang[0]['code'],
+                'Bid Strategy Type' => 'Manual CPC',
+                'Enhanced CPC' => 'Disabled',
+                'Start Date' => date('Y-m-d'),
+                'End Date' => '[]',
+                'Ad Schedule' => '[]',
+                'Ad rotation' => 'Rotate indefinitely',
+                'Targeting method' => 'Location of presence or Area of interest',
+                'Exclusion method' => 'Location of presence',
+                'Audience targeting' => 'Audience segments',
+                'Flexible Reach' => 'Audience segments',
+                'Text asset automation' => 'Disabled',
+                'Final URL expansion' => 'Enabled',
+                'Campaign Status' => 'Enabled',
             ]);
 
-            array_push($data, $calloutTextLine);
-        }
+            array_push($data, $lineCampaign);
 
-        $listKeyWords = explode(',', $value['LISTKEYWORDS']);
+            $lineCampaign2 = formatCampaignData([
+                'Campaign' => $value['CAMPAIGN'],
+                'Languages' => 'All',
+                'Ad rotation' => 'Rotate indefinitely',
+                'Audience targeting' => 'Audience segments',
+                'Flexible Reach' => 'Audience segments;Genders;Ages;Parental status;Household incomes',
+                'Final URL expansion' => 'Enabled',
+                'Campaign Status' => 'Enabled',
+                'Ad Group' => $value['CAMPAIGN'],
+                'Max CPC' => $value['INITIALCPC'],
+                'Max CPM' => '0.01',
+                'Target CPV' => '0.01',
+                'Desktop Bid Modifier' => '0',
+                'Mobile Bid Modifier' => '0',
+                'Tablet Bid Modifier' => '0',
+                'Display Network Custom Bid Type' => 'None',
+                'Optimized targeting' => 'Disabled',
+                'Ad Group Type' => 'Standard',
+                'Ad Group Status' => 'Enabled',
+            ]);
 
-        foreach ($listKeyWords as $keyword) {
-            if(!empty($keyword)){
+            array_push($data, $lineCampaign2);
 
-                $keywordsLine = formatCampaignData([
+            $calloutArray = translateCalloutText($client, $value['COUNTRY']);
+
+            foreach($calloutArray as $calloutText){
+                $calloutTextLine = formatCampaignData([
                     'Campaign' => $value['CAMPAIGN'],
-                    'Campaign Status' => 'Enabled',
                     'Ad Group' => $value['CAMPAIGN'],
-                    'Ad Group Status' => 'Enabled',
-                    'Keyword' => trim($keyword),
-                    'Criterion Type' => 'Broad',
-                    'Status' => 'Enabled',
-                    'Approval Status' => 'Enabled',
+                    'Callout text' => $calloutText,
                 ]);
 
-                array_push($data, $keywordsLine);
-            }            
-        }
+                array_push($data, $calloutTextLine);
+            }
 
-        $headLineCTAKeyWord = $value['CTAHEADLINE1'];
+            $listKeyWords = explode(',', $value['LISTKEYWORDS']);
 
-        $url = $value['URLNOTUTM'];
+            foreach ($listKeyWords as $keyword) {
+                if(!empty($keyword)){
 
-        $headLineExploded = explode(" ", $headLineCTAKeyWord);
-        
-        $headlines = ['-', 1, 2];
+                    $keywordsLine = formatCampaignData([
+                        'Campaign' => $value['CAMPAIGN'],
+                        'Campaign Status' => 'Enabled',
+                        'Ad Group' => $value['CAMPAIGN'],
+                        'Ad Group Status' => 'Enabled',
+                        'Keyword' => trim($keyword),
+                        'Criterion Type' => 'Broad',
+                        'Status' => 'Enabled',
+                        'Approval Status' => 'Enabled',
+                    ]);
 
-        foreach ($headlines as $keyHeadLine) {
+                    array_push($data, $keywordsLine);
+                }            
+            }
+
+            $headLineCTAKeyWord = $value['CTAHEADLINE1'];
+
+            $url = $value['URLNOTUTM'];
+
+            $headLineExploded = explode(" ", $headLineCTAKeyWord);
 
             $cta = $client->sendMessage(
                 "
@@ -381,183 +403,241 @@ foreach ($json['data'] as $key => $value) {
                     Tome Como base para criar a palavra: $headLineCTAKeyWord.
                     No idioma do artigo (sigla {$lang[0]['code']}).
 
-                    Eu preciso de quatro CTA com até 4 palavras e no máximo 25 caracteres.  
+                    Eu preciso de um array bidimencional de 3 à 4 índices não pode ser menos, com 5 CTA em cada índice com até 4 palavras e no máximo 25 caracteres.  
                     Jamais pode passar desse número de palavras e caracteres, pois o google ads não aceita maior.
                 "
-            , 'Traga a resposta apenas como um array.');
+            , 'Traga a resposta apenas como um array sem a ultima virgula no final para não quebrar o json_decode.');
+            
+            $cta = extractAndDecodeArrays($cta['firstResponse']);
 
-            $cta = parseJsonArray($cta['firstResponse']);
+            if(is_array($cta)){
+                if(count($cta) < 3){
+                    throw new Exception("Erro do Chatgpt ao gerar CTA", 1);
+                }
+            }else{
+                throw new Exception("Erro do Chatgpt ao gerar CTA", 1);
+            }
 
             $descriptions = $client->sendMessage(
                 "
-                    Preciso que crie quatro descrições para meu anúncio no google.
+                    Preciso que crie 5 descrições para meu anúncio no google.
                     Tome Como base para criar a palavra: $headLineCTAKeyWord. 
 
                     No idioma do artigo (sigla {$lang[0]['code']}).
-                    Eu preciso de quatro descrições com 12 palavras e no máximo 75 caracteres.
+                    Eu preciso de um array bidimencional de 3 à 4 índices não pode ser menos, com 5 descrições em cada índice de cada array de até 12 palavras e no máximo 75 caracteres.
 
                     Jamais pode passar desse número de palavras e caracteres, pois o google ads não aceita maior.
                 "
-            , 'Traga a resposta apenas como um array.');
-
-            $descriptions = parseJsonArray($descriptions['firstResponse']);
+            , 'Traga a resposta apenas como um array sem a ultima virgula no final para não quebrar o json_decode.');
             
-            $queryParams = http_build_query([
-                'utm_source' => $value['UTMSOURCE'],
-                'utm_medium' => $value['UTMMEDIUM'],
-                'utm_campaign' => $value['UTMCAMPAGIN'],
-            ]);
+            $descriptions = extractAndDecodeArrays($descriptions['firstResponse']);
 
-            $finalUrl = "$url?$queryParams";
+            if(is_array($descriptions)){
+                if(count($descriptions) < 3){
+                    throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar Descrições", 2);
+                }
+            }else{
+                throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar Descrições", 2);
+            }
+            
+            $headlines = ['-', 1, 2];
 
-            $headlineRamdom = array_rand(array_flip($calloutArray), 10);
+            foreach ($headlines as $key => $keyHeadLine) {
+                
+                $queryParams = http_build_query([
+                    'utm_source' => $value['UTMSOURCE'],
+                    'utm_medium' => $value['UTMMEDIUM'],
+                    'utm_campaign' => $value['UTMCAMPAGIN'],
+                ]);
 
-            $utmLine = formatCampaignData([
-                'Campaign' => $value['CAMPAIGN'],
-                'Campaign Status' => 'Enabled',
-                'Ad Group' => $value['CAMPAIGN'],
-                'Ad Group Status' => 'Enabled',
-                'Final URL' => $finalUrl,
-                'Status' => 'Enabled',
-                'Ad type' => 'Responsive search ad',
-                'Headline 1' => "{KeyWord:$headLineCTAKeyWord}",
-                'Headline 1 position' => $keyHeadLine,
-                'Headline 2' => $cta[0],
-                'Headline 2 position' => $keyHeadLine,
-                'Headline 3' => $cta[1],
-                'Headline 3 position' => $keyHeadLine,
-                'Headline 4' => $cta[2],
-                'Headline 4 position' => $keyHeadLine,
-                'Headline 5' => $cta[3],
-                'Headline 5 position' => $keyHeadLine,
-                'Headline 6' => $headlineRamdom[0],
-                'Headline 6 position' => $keyHeadLine,
-                'Headline 7' => $headlineRamdom[1],
-                'Headline 7 position' => '-',
-                'Headline 8' => $headlineRamdom[2],
-                'Headline 8 position' => '-',
-                'Headline 9' => $headlineRamdom[3],
-                'Headline 9 position' => '-',
-                'Headline 10' => $headlineRamdom[4],
-                'Headline 10 position' => '-',
-                'Headline 11' => $headlineRamdom[5],
-                'Headline 11 position' => '-',
-                'Headline 12' => $headlineRamdom[6],
-                'Headline 12 position' => '-',
-                'Headline 13' => $headlineRamdom[7],
-                'Headline 13 position' => '-',
-                'Headline 14' => $headlineRamdom[8],
-                'Headline 14 position' => '-',
-                'Headline 15' => $headlineRamdom[9],
-                'Headline 15 position' => '-',
-                'Description 1' => $descriptions[0],
-                'Description 1 position' => '-',
-                'Description 2' => $descriptions[1],
-                'Description 2 position' => '-',
-                'Description 3' => $descriptions[2],
-                'Description 3 position' => '-',
-                'Description 4' => $descriptions[3],
-                'Description 4 position' => '-',
-                'Path 1' => strtolower($headLineExploded[0]),
-                'Path 2' => strtolower(end($headLineExploded)),
-                'Ad strength' => 'Average'
-            ]);
+                $finalUrl = "$url?$queryParams";
 
-            array_push($data, $utmLine);
-        }
+                $headlineRamdom = array_rand(array_flip($calloutArray), 10);
 
-        $utmMaxLinks = 20;
+                $utmLine = formatCampaignData([
+                    'Campaign' => $value['CAMPAIGN'],
+                    'Campaign Status' => 'Enabled',
+                    'Ad Group' => $value['CAMPAIGN'],
+                    'Ad Group Status' => 'Enabled',
+                    'Final URL' => $finalUrl,
+                    'Status' => 'Enabled',
+                    'Ad type' => 'Responsive search ad',
+                    'Headline 1' => "{KeyWord:$headLineCTAKeyWord}",
+                    'Headline 1 position' => $keyHeadLine,
+                    'Headline 2' => $cta[$key][0],
+                    'Headline 2 position' => $keyHeadLine,
+                    'Headline 3' => $cta[$key][1],
+                    'Headline 3 position' => $keyHeadLine,
+                    'Headline 4' => $cta[$key][2],
+                    'Headline 4 position' => $keyHeadLine,
+                    'Headline 5' => $cta[$key][3],
+                    'Headline 5 position' => $keyHeadLine,
+                    'Headline 6' => $headlineRamdom[0],
+                    'Headline 6 position' => $keyHeadLine,
+                    'Headline 7' => $headlineRamdom[1],
+                    'Headline 7 position' => '-',
+                    'Headline 8' => $headlineRamdom[2],
+                    'Headline 8 position' => '-',
+                    'Headline 9' => $headlineRamdom[3],
+                    'Headline 9 position' => '-',
+                    'Headline 10' => $headlineRamdom[4],
+                    'Headline 10 position' => '-',
+                    'Headline 11' => $headlineRamdom[5],
+                    'Headline 11 position' => '-',
+                    'Headline 12' => $headlineRamdom[6],
+                    'Headline 12 position' => '-',
+                    'Headline 13' => $headlineRamdom[7],
+                    'Headline 13 position' => '-',
+                    'Headline 14' => $headlineRamdom[8],
+                    'Headline 14 position' => '-',
+                    'Headline 15' => $headlineRamdom[9],
+                    'Headline 15 position' => '-',
+                    'Description 1' => $descriptions[$key][0],
+                    'Description 1 position' => '-',
+                    'Description 2' => $descriptions[$key][1],
+                    'Description 2 position' => '-',
+                    'Description 3' => $descriptions[$key][2],
+                    'Description 3 position' => '-',
+                    'Description 4' => $descriptions[$key][3],
+                    'Description 4 position' => '-',
+                    'Path 1' => strtolower($headLineExploded[0]),
+                    'Path 2' => strtolower(end($headLineExploded)),
+                    'Ad strength' => 'Average'
+                ]);
 
-        for ($i = 1; $i <= $utmMaxLinks; $i++) {
+                array_push($data, $utmLine);
+            }
 
             $linkText = $client->sendMessage(
-                "Preciso que crie duas CTA (Headline), para meu anúncio no google. Tome Como base para criar a palavra: $headLineCTAKeyWord. No idioma do artigo (sigla {$lang[0]['code']}). Eu preciso de quatro CTA com até 3 palavras e no máximo 20 caracteres. Jamais pode passar desse número de palavras e caracteres, pois o google ads não aceita maior."
-            , 'Traga a resposta apenas como um array.');
-    
+                "
+                Preciso que você crie um array com 20 Call-to-Actions (CTAs) para o meu anúncio no Google, com base na palavra-chave fornecida: $headLineCTAKeyWord. As CTAs devem seguir as seguintes diretrizes:
+                Cada CTA deve ter no máximo 3 palavras e não deve exceder 20 caracteres.
+                As CTAs devem estar no idioma especificado pela sigla do idioma no artigo: {$lang[0]['code']}.
+                A estrutura do array deve ser a seguinte:
+                [CTA 1, CTA 2, ... CTA 20]
+                Certifique-se de que todas as CTAs estejam dentro dos limites de palavras e caracteres estabelecidos, e sejam relevantes para a palavra-chave $headLineCTAKeyWord. O formato final deve ser um array com exatamente 20 CTAs, cada um com no máximo 3 palavras e 20 caracteres.
+                "
+                , 'Traga a resposta apenas como um array sem a ultima virgula no final para não quebrar o json_decode.');
+            
             $linkText = parseJsonArray($linkText['firstResponse']);
 
-            $descriptionLines = $client->sendMessage(
-                "Preciso que crie duas descrições para meu anúncio no google. Tome Como base para criar a palavra: $headLineCTAKeyWord. No idioma do artigo (sigla {$lang[0]['code']}). Eu preciso de quatro descrições com até 4 palavras e no máximo 30 caracteres. Jamais pode passar desse número de palavras e caracteres, pois o google ads não aceita maior."
-            , 'Traga a resposta apenas como um array.');
-    
-            $descriptionLines = parseJsonArray($descriptionLines['firstResponse']);
-            
-            $prefix = $value['PREFIXSITELINK'];
-
-            $id = str_pad($i, 2, 0, STR_PAD_LEFT);
-            
-            $queryParams = http_build_query([
-                'utm_source' => $value['UTMSOURCE'],
-                'utm_medium' => $value['UTMMEDIUM'],
-                'utm_campaign' => "{$value['UTMCAMPAGIN']}_{$prefix}$id",
-            ]);
-
-            $finalUrl = "$url?$queryParams";
-
-            $siteLinkLine = formatCampaignData([
-                'Campaign' => $value['CAMPAIGN'],
-                'Ad Group' => $value['CAMPAIGN'],
-                'Final URL' => $finalUrl,
-                'Link Text' => $linkText[0],
-                'Description Line 1' => $descriptionLines[0],
-                'Description Line 2' => $descriptionLines[1],
-                'Device Preference' => 'All'
-            ]);
-
-            array_push($data, $siteLinkLine);
-        }
-
-        $filename = md5(date('Ymdhmis') . $key);
-
-        $fp = fopen($filename, 'w');
-
-        fputcsv($fp, $headers);
-
-        foreach ($data as $row) {
-
-            $csv_row = [];
-            foreach ($headers as $header) {
-                $csv_row[] = isset($row[$header]) ? $row[$header] : '';
+            if(is_array($linkText)){
+                if(count($linkText) < 20){
+                    throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar linktext", 3);
+                }
+            }else{
+                throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar linktext", 3);
             }
-            fputcsv($fp, $csv_row);
+
+            $descriptionLines = $client->sendMessage(
+                "
+                Preciso que você crie um array bidimensional com pelo menos 2 descrições para o meu anúncio no Google, totalizando 20 entradas no array. Cada descrição deve seguir as seguintes diretrizes:
+                Cada descrição deve ter no máximo 4 palavras e não pode exceder 30 caracteres.
+                As descrições devem ser baseadas na palavra-chave fornecida: $headLineCTAKeyWord.
+                O idioma das descrições deve ser conforme a sigla do idioma fornecida no artigo: {$lang[0]['code']}.
+                Por exemplo, a estrutura do array deve ser a seguinte:
+
+                [0] => [\"Descrição1\", \"Descrição2\"],
+                [1] => [\"Descrição1\", \"Descrição2\"],
+                ...
+                [19] => [\"Descrição1\", \"Descrição2\"]
+
+                As descrições devem ser criadas com base na palavra-chave $headLineCTAKeyWord e devem estar no idioma especificado. Assegure-se de que cada entrada no array contenha exatamente 2 descrições e que estas estejam dentro dos limites estabelecidos de palavras e caracteres.
+                "
+            , 'Traga a resposta apenas como um array sem a ultima virgula no final para não quebrar o json_decode.');
+            
+            $descriptionLines = (array) extractAndDecodeArrays($descriptionLines['firstResponse']);
+
+            if(is_array($descriptionLines)){
+                if(count($descriptionLines) < 20){
+                    throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar descriptionLines", 3);
+                }
+            }else{
+                throw new Exception("#{$value['CAMPAIGN']} Erro do Chatgpt ao gerar descriptionLines", 3);
+            }
+                
+            $utmMaxLinks = 20;
+
+            for ($i = 1; $i <= $utmMaxLinks; $i++) {
+
+                $index = $i - 1;
+                
+                $prefix = $value['PREFIXSITELINK'];
+
+                $id = str_pad($i, 2, 0, STR_PAD_LEFT);
+                
+                $queryParams = http_build_query([
+                    'utm_source' => $value['UTMSOURCE'],
+                    'utm_medium' => $value['UTMMEDIUM'],
+                    'utm_campaign' => "{$value['UTMCAMPAGIN']}_{$prefix}$id",
+                ]);
+
+                $finalUrl = "$url?$queryParams";
+
+                $siteLinkLine = formatCampaignData([
+                    'Campaign' => $value['CAMPAIGN'],
+                    'Ad Group' => $value['CAMPAIGN'],
+                    'Final URL' => $finalUrl,
+                    'Link Text' => $linkText[$index],
+                    'Description Line 1' => $descriptionLines[$index][0],
+                    'Description Line 2' => $descriptionLines[$index][1],
+                    'Device Preference' => 'All'
+                ]);
+
+                array_push($data, $siteLinkLine);
+            }
+
+            $filename = md5(date('Ymdhmis') . $key);
+
+            $fp = fopen($filename, 'w');
+
+            fputcsv($fp, $headers);
+
+            foreach ($data as $row) {
+
+                $csv_row = [];
+                foreach ($headers as $header) {
+                    $csv_row[] = isset($row[$header]) ? $row[$header] : '';
+                }
+                fputcsv($fp, $csv_row);
+            }
+
+            fclose($fp);
+
+            $csvString = file_get_contents($filename);
+            
+            $insert = DB::insert('campaigns', [
+                'header' => $insert['id'],
+                'campaign' => $value['CAMPAIGN'],
+                'group_campaign' => $value['GROUP'],
+                'budget' => $value['BUDGET'],
+                'typecampaign' => $value['TYPECAMPAIGN'],
+                'initialcpc' => $value['INITIALCPC'],
+                'country' => $value['COUNTRY'],
+                'conversiongoal' => $value['CONVERSIONGOAL'],
+                'initialdate' => date('Y-m-d'),
+                'urlnotutm' => $value['URLNOTUTM'],
+                'listkeywords' => $value['LISTKEYWORDS'],
+                'wordsnotused' => $value['WORDSNOTUSED'],
+                'ctaheadline1' => $value['CTAHEADLINE1'],
+                'utmcampaign' => $value['UTMCAMPAGIN'],
+                'utmmedium' => $value['UTMMEDIUM'],
+                'label' => $value['LABEL'],
+                'prefixsitelink' => $value['PREFIXSITELINK'],
+                'csv_campaigns' => $csvString
+            ]);
+
+            $jsonResponse = [ 'resp' => $insert, 'name' => $value['CAMPAIGN']];
+
+            unlink($filename);
         }
-
-        fclose($fp);
-
-        $csvString = file_get_contents($filename);
-        
-        $insert = DB::insert('campaigns', [
-            'header' => $insert['id'],
-            'campaign' => $value['CAMPAIGN'],
-            'group_campaign' => $value['GROUP'],
-            'budget' => $value['BUDGET'],
-            'typecampaign' => $value['TYPECAMPAIGN'],
-            'initialcpc' => $value['INITIALCPC'],
-            'country' => $value['COUNTRY'],
-            'conversiongoal' => $value['CONVERSIONGOAL'],
-            'initialdate' => $value['INITIALDATE'],
-            'urlnotutm' => $value['URLNOTUTM'],
-            'listkeywords' => $value['LISTKEYWORDS'],
-            'wordsnotused' => $value['WORDSNOTUSED'],
-            'ctaheadline1' => $value['CTAHEADLINE1'],
-            'utmcampaign' => $value['UTMCAMPAGIN'],
-            'utmmedium' => $value['UTMMEDIUM'],
-            'label' => $value['LABEL'],
-            'prefixsitelink' => $value['PREFIXSITELINK'],
-            'csv_campaigns' => $csvString
-        ]);
-
-        $jsonResponse[] = [
-            'db' => $insert,
-            'collout' => $calloutArray
-        ];
-
-        unlink($filename);
     }
+} catch (\Throwable $th) {
+    Response::fail([], $th->getMessage());
 }
 
 if(count($jsonResponse) > 0){
-    Response::success($jsonResponse, 'Processo Finalizado');
+    Response::success($jsonResponse, 'Upload realizado');
 }
 
 Response::success([], 'Não foi possível rodar o processo');

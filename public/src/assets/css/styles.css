@@ -32,6 +32,10 @@
     backdrop-filter: blur(4px);
 }
 
+tr:has(.row-checkbox:checked){
+    background-color: rgb(243, 243, 243, 0.3) !important;
+}
+
 .loader {
     width: 8px;
     height: 8px;

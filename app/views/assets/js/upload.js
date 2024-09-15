@@ -1,6 +1,7 @@
 import { loading } from "./utils.js"
 
 const uploader = document.querySelector("#upload-file")
+const errors = document.querySelector("#errors")
 
 uploader.addEventListener("change", ({ target }) => {
     const [file] = target.files
@@ -11,45 +12,56 @@ uploader.addEventListener("change", ({ target }) => {
 
         loading(true)
 
-        const data = new Uint8Array(event.target.result);
+        const data = new Uint8Array(event.target.result)
         const workbook = XLSX.read(data, { type: 'array' })
         const [ sheetName ] = workbook.SheetNames
         const sheet = workbook.Sheets[sheetName]
 
-        const headers = {};
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const headers = {}
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
         rows.forEach(row => {
             row.forEach((cell, colIndex) => {
-                const header = rows[0][colIndex];
+                const header = rows[0][colIndex]
                 if (header && !headers[header]) {
-                    headers[header] = true;
+                    headers[header] = true
                 }
-            });
-        });
-
-        const json = XLSX.utils.sheet_to_json(sheet, { header: Object.keys(headers), defval: null });
-
-        const request = await fetch('../controllers/uploadExcel.php', {
-            method: 'POST',
-            body: JSON.stringify({
-                data: json.slice(1),
-                file: file.name
             })
         })
 
-        const response = await request.json()
+        const json = XLSX.utils.sheet_to_json(sheet, { header: Object.keys(headers), defval: null })
+
+        const notyf = new Notyf()
+
+        for (const excelData of json.slice(1)) {
+            
+            const request = await fetch('../controllers/uploadExcel.php', {
+                method: 'POST',
+                body: JSON.stringify({
+                    data: [excelData],
+                    file: file.name
+                })
+            })
+
+            const { data, message, success} = await request.json()
+
+            if(success){
+                notyf.success(`#${data.name} - ${message}`)
+            }else{
+                notyf.error(`${message}`)
+
+                errors.innerHTML += `
+                    <article class="message is-danger py-1">
+                        <div class="message-body">
+                            ${message}
+                        </div>
+                    </article>
+                `
+            }
+        }
 
         loading(false)
+        
+    }
 
-        // Create an instance of Notyf
-        var notyf = new Notyf();
-
-        // Display an error notification
-        //notyf.error('You must fill out the form before moving forward');
-
-        // Display a success notification
-        notyf.success('Upload Realizado com sucesso!');
-    };
-
-    reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(file)
 })
