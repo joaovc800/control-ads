@@ -53,7 +53,7 @@ $configLanguages = [
 
 
 $client = new ChatGPT([
-    'apiKey' => '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',
+    'apiKey' => 'Sua chave de api aqui',
     'model' => 'gpt-4o-mini'
 ]);
 
